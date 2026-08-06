@@ -17,6 +17,8 @@ Built as a single Swift file — no Xcode project, no dependencies.
 
 ## Install
 
+Building from source (below) is recommended — it takes seconds and avoids Gatekeeper warnings. A prebuilt app is also available on the [Releases page](https://github.com/yqtian-se/keydisplay/releases); since it isn't notarized, macOS will require **System Settings → Privacy & Security → Open Anyway** on first launch.
+
 ```bash
 git clone https://github.com/yqtian-se/keydisplay.git
 cd keydisplay
