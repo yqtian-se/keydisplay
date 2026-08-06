@@ -173,6 +173,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func handle(_ event: NSEvent) {
+        // Global pause/resume hotkey ⌃⌥⌘P — the tap stays enabled while paused
+        // so this works from anywhere, in either state.
+        if event.keyCode == 35,
+           event.modifierFlags.contains(.control),
+           event.modifierFlags.contains(.option),
+           event.modifierFlags.contains(.command) {
+            togglePause()
+            return
+        }
         guard !paused else { return }
         let text = displayString(for: event)
         guard !text.isEmpty else { return }
@@ -286,6 +295,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
 
         pauseItem = NSMenuItem(title: "Pause", action: #selector(togglePause), keyEquivalent: "p")
+        pauseItem.keyEquivalentModifierMask = [.control, .option, .command]
         pauseItem.target = self
         menu.addItem(pauseItem)
         menu.addItem(.separator())
@@ -334,11 +344,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func togglePause() {
         paused.toggle()
-        if let tap = eventTap { CGEvent.tapEnable(tap: tap, enable: !paused) }
         pauseItem.state = paused ? .on : .off
         pauseItem.title = paused ? "Resume" : "Pause"
         statusItem.button?.appearsDisabled = paused
-        if paused { clearLines() }
+        show(text: paused ? "⏸ paused — ⌃⌥⌘P to resume" : "▶ resumed")
         secureWarned = false  // re-check (and re-show the warning if needed) on resume
     }
 
@@ -391,7 +400,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 DispatchQueue.main.async { me.handle(ev) }
             } else if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
                 // macOS disables slow taps; ours is listen-only, just re-enable.
-                if let tap = me.eventTap, !me.paused { CGEvent.tapEnable(tap: tap, enable: true) }
+                // (Stays enabled while paused too, so the ⌃⌥⌘P hotkey can resume.)
+                if let tap = me.eventTap { CGEvent.tapEnable(tap: tap, enable: true) }
             }
             return Unmanaged.passUnretained(cgEvent)
         }
