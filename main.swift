@@ -1,6 +1,7 @@
 import Cocoa
 import ApplicationServices
 import IOKit.hid
+import Carbon.HIToolbox
 
 // MARK: - Key name helpers
 
@@ -56,6 +57,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var sweepTimer: Timer?
     var eventTap: CFMachPort?
     var paused = false
+    var secureWarned = false
 
     // Each line is one burst of typing; a pause in typing starts a new line.
     struct Line {
@@ -105,6 +107,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupStatusItem()
         sweepTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             self?.sweep()
+        }
+        Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+            self?.checkSecureInput()
         }
         ensurePermissionsThenMonitor()
     }
@@ -334,6 +339,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         pauseItem.title = paused ? "Resume" : "Pause"
         statusItem.button?.appearsDisabled = paused
         if paused { clearLines() }
+        secureWarned = false  // re-check (and re-show the warning if needed) on resume
+    }
+
+    // Secure Keyboard Entry (e.g. Terminal's) blocks key capture system-wide and
+    // silently — surface it on the overlay instead of just going dark.
+    func checkSecureInput() {
+        guard eventTap != nil, !paused else { return }
+        let blocked = IsSecureEventInputEnabled()
+        if blocked && !secureWarned {
+            secureWarned = true
+            show(text: "⚠︎ Key capture blocked by Secure Keyboard Entry — quit Terminal", fade: false)
+        } else if !blocked && secureWarned {
+            secureWarned = false
+            show(text: "KeyDisplay ✓")
+        }
     }
 
     // MARK: Accessibility / Input Monitoring permission + event tap
